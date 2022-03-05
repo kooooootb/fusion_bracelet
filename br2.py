@@ -3,6 +3,8 @@
 
 from asyncio.windows_events import NULL
 from contextlib import nullcontext
+from tkinter.tix import INTEGER
+from turtle import distance
 from warnings import catch_warnings
 import adsk.core, adsk.fusion, adsk.cam, traceback, math
 
@@ -357,10 +359,10 @@ class MyCommandExecuteHandler(adsk.core.CommandEventHandler):
             text = texts.add(textInput)
             curves = text.explode()
 # put text on cylinder's face
-            index = 0
+            sideFaceIndex = 0
             if extrude.sideFaces.item(1).area > extrude.sideFaces.item(0).area:
-                index = 1
-            wrapSketch(extrude.sideFaces.item(index), curves)
+                sideFaceIndex = 1
+            wrapSketch(extrude.sideFaces.item(sideFaceIndex), curves)
 # move text
             textSketch = rootComp.sketches.itemByName('WrapSketch')
             textCurves = textSketch.sketchCurves
@@ -377,7 +379,6 @@ class MyCommandExecuteHandler(adsk.core.CommandEventHandler):
             textSketch.move(curvesCol, transform)
 # array for created faces
             faces = []
-            numberOfFaces = 0
 # creating faces using patches
             while curvesCol.count > 0:
                 currentCurvesInput = adsk.core.ObjectCollection.create()#collection for edges on current attempt
@@ -387,41 +388,79 @@ class MyCommandExecuteHandler(adsk.core.CommandEventHandler):
                 success = False
                 resFaces = None
                 # try to create patch, if cant => add next edge to collection and try again
-                while resFaces == None or resFaces.isValid == False:
+                inputCurvesClosed = False
+                while inputCurvesClosed == False:
                     currentCurvesInput.add(curvesCol.item(index))
                     input = patchFeatures.createInput(currentCurvesInput, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
                     index += 1
-                    try:
-                        resFaces = patchFeatures.add(input)
-                    except:
-                        success = False
+                    inputCurvesClosed = input.boundaryCurve.isClosed
+                resFaces = patchFeatures.add(input)
                 faces.append(resFaces.faces.item(0))
-                numberOfFaces += 1
                 # _ui.messageBox(str(index))
                 # delete used curves from sketch
                 for curve in currentCurvesInput:
-                    curve.deleteMe()
-                # recreate collection without deleted curves
-                curvesCol = adsk.core.ObjectCollection.create()
-                for sk in textCurves:
-                    curvesCol.add(sk)
-# extrude created faces
-            _ui.messageBox(str(numberOfFaces))
+                    curvesCol.removeByItem(curve)
+
+# join surfaces to cylinder using offsets
+            offsets = rootComp.features.offsetFeatures
+            feature = adsk.fusion.FeatureOperations.NewBodyFeatureOperation
+            ofDistance = adsk.core.ValueInput.createByReal(-0.2)
+            offsetFaces = []
             for face in faces:
-                # create collection of all edges in current face
-                edges = face.edges
-                edgesCol = adsk.core.ObjectCollection.create()
-                for edge in edges:
-                    edgesCol.add(edge)
-                # create profile
-                profile = rootComp.createBRepEdgeProfile(edgesCol)
-                # set distance
-                distance = adsk.fusion.DistanceExtentDefinition.create(adsk.core.ValueInput.createByReal(5)) 
-                # extrude
-                extInput = extrudes.createInput(profile, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
-                extInput.setOneSideExtent(distance, adsk.fusion.ExtentDirections.NegativeExtentDirection)
-                extInput.isSolid = False
-                ext = extrudes.add(extInput)
+                ofCol = adsk.core.ObjectCollection.create()
+                ofCol.add(face)
+                input = offsets.createInput(ofCol, ofDistance, feature)
+                offset = offsets.add(input)
+                offsetFace = offset.faces.item(0)
+
+                loftFeatures = rootComp.features.loftFeatures
+                input = loftFeatures.createInput(adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+                loftSections = input.loftSections
+                loftSections.add(face)
+                loftSections.add(offsetFace)
+                input.isSolid = True
+                loft = loftFeatures.add(input)
+                loftBody = loft.bodies.item(0)
+
+                combineFeatures = rootComp.features.combineFeatures
+                tools = adsk.core.ObjectCollection.create()
+                tools.add(loftBody)
+                input = combineFeatures.createInput(extrude.bodies.item(0), tools)
+                input.isNewComponent = False
+                input.isKeepToolBodies = False
+                input.operation = adsk.fusion.FeatureOperations.JoinFeatureOperation
+                combineFeature = combineFeatures.add(input)
+
+
+
+
+
+
+
+
+# # join surfaces to cylinder using split face
+#             splitFaceFeatures = rootComp.features.splitFaceFeatures
+#             facesCol = adsk.core.ObjectCollection.create()
+#             facesCol.add(extrude.sideFaces.item(sideFaceIndex))
+#             toolCol = adsk.core.ObjectCollection.create()
+#             for face in faces:
+#                 toolCol.add(face)
+#             splitInput = splitFaceFeatures.createInput(facesCol, toolCol, True)
+#             splitInput.setClosestPointSplitType()
+#             split = splitFaceFeatures.add(splitInput)
+#             splitFaces = split.faces
+#             splitIndex = 0
+#             for face in faces:
+#                 loftFeatures = rootComp.features.loftFeatures
+#                 input = loftFeatures.createInput(adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+#                 loftSections = input.loftSections
+#                 loftSections.add(face)
+#                 loftSections.add(splitFaces.item(splitIndex))
+#                 splitIndex += 1
+#                 input.isSolid = True
+                
+#                 loftFeature = loftFeatures.add(input)
+
 
 
 
