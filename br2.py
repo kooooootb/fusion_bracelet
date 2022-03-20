@@ -1,7 +1,14 @@
 #Author-
 #Description-
 
+from operator import countOf
+import string
 import adsk.core, adsk.fusion, adsk.cam, traceback, math
+
+import os, sys
+
+import numpy as np
+# import cv2
 
 _app = None
 _ui = None
@@ -11,16 +18,61 @@ _maxint = 99999999
 
 _handlers = []
 
-##############################################################################
+# def download():
+#     app = adsk.core.Application.get()
+#     ui  = app.userInterface
 
-# Inputs
-sketch_selInput = None
-cylinder_selInput = None
-xscale_float_spinnerInput = None
-yscale_float_spinnerInput = None
-radiusOffset_float_spinnerInput = None
-thickenDepth_float_spinnerInput = None
-splitFace_boolinput = None
+#     install_numpy = sys.path[0] +'\Python\python.exe -m pip install numpy'
+#     install_numpy = sys.path[0] +'\Python\python.exe -m pip install opencv-python'
+
+#     os.system('cmd /c "' + install_numpy + '"')
+    
+#     try:
+#         import numpy as np
+#         import cv2
+#         ui.messageBox("Installation succeeded !")
+#     except:
+#         ui.messageBox("Failed when executing 'import scipy'")
+
+# def getCurvesFromImage(filename:string, rootComp:adsk.fusion.Component):
+#     image = cv2.imread(filename, cv2.IMREAD_UNCHANGED)# reading image
+#     img_grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)# convert image to grey
+#     ret, new_image = cv2.threshold(img_grey, 150, 255, cv2.THRESH_BINARY)# take threshold image
+#     contours, hierarchy = cv2.findContours(new_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+#     img_contours = np.zeros(image.shape)# create an empty image for contours
+#     ret, img_contours = cv2.threshold(img_contours, -1, 255, 0)
+#     cv2.drawContours(img_contours, contours, -1, (0, 0, 0))
+#     cv2.imwrite("res.jpg", img_contours)
+
+#     # print(contours)
+#     contours_array = []
+#     for iCont in contours:
+#         contour = []
+#         for jCont in iCont:
+#             point = [jCont[0][0], jCont[0][1]]
+#             contour.append(point)
+#         contours_array.append(contour)
+
+#     sketch:adsk.fusion.Sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
+#     sketch.name = 'imageSketch'
+#     lines = sketch.sketchCurves.sketchLines
+#     resCurves = []
+
+#     firstPoint = adsk.core.Point3D.create(0,0,0)
+#     secondPoint = adsk.core.Point3D.create(0,0,0)
+#     for contour in contours_array:
+#         firstPoint.x = contour[len(contour) - 1][0]
+#         firstPoint.y = contour[len(contour) - 1][1]
+
+#         for point in contour:
+#             secondPoint.x = point[0]
+#             secondPoint.y = point[1]
+
+#             curve = lines.addByTwoPoints(firstPoint, secondPoint)
+#             resCurves.append(curve)
+
+#             firstPoint.x = point[0]
+#             firstPoint.y = point[1]
 
 def getDistancesEdSk(edges:adsk.fusion.BRepEdges, sketchLines:adsk.fusion.SketchLines):
     if edges.count != sketchLines.count:
@@ -95,21 +147,10 @@ def findNearestEdge(edge:adsk.fusion.BRepEdge, loop:adsk.fusion.BRepLoop):
             resEdge = pairEdge
     return resEdge
 
+##############################################################################
 
 def point3DStr(pt):
     return (str(pt.x) + ',' + str(pt.y) + ',' + str(pt.z))
-
-def getSketchCurvesBoundingBox():
-    bbox = None
-    if sketch_selInput != None:
-        for i in range(sketch_selInput.selectionCount):
-            sel = sketch_selInput.selection(i)
-            if bbox == None:
-                bbox = sel.entity.boundingBox.copy()
-            else:
-                bbox.combine(sel.entity.boundingBox)
-
-    return bbox
 
 def mapPoint2Curve(x, y, radius, xOrig, yOrig, zOrig):
     x2 = radius * math.cos(x / radius) + xOrig
@@ -133,20 +174,12 @@ def wrapSketch(cylFace, sketchCurves, radius):
     splitFace_boolinput = False
 
     xScale = 1.0
-    if xscale_float_spinnerInput != None:
-        xScale = xscale_float_spinnerInput.value
 
     yScale = 1.0
-    if yscale_float_spinnerInput != None:
-        yScale = yscale_float_spinnerInput.value
 
     radiusOffset = radius
-    if radiusOffset_float_spinnerInput != None:
-        radiusOffset = radiusOffset_float_spinnerInput.value
 
     thickenDepth = 0.2
-    if thickenDepth_float_spinnerInput != None:
-        thickenDepth = thickenDepth_float_spinnerInput.value
         
     # Creating a sketch will empty the selection input.  Cache the selected entities
     # so we don't lose access to them when new sketch created.
@@ -404,6 +437,7 @@ class MyCommandExecuteHandler(adsk.core.CommandEventHandler):
             isSingleLined = True
             makeSlot = True
             slotWidth = None
+            usePicture = False
 
             for input in inputs:
                 if input.id == 'Radius':
@@ -428,6 +462,8 @@ class MyCommandExecuteHandler(adsk.core.CommandEventHandler):
                     makeSlot = input.value
                 if input.id == 'Slot width':
                     slotWidth = input.value
+                if input.id == 'Use picture':
+                    usePicture = input.value
 
 # set initial variables
             rootComp: adsk.fusion.Component = _app.activeProduct.rootComponent
@@ -473,33 +509,40 @@ class MyCommandExecuteHandler(adsk.core.CommandEventHandler):
             cylinderSideFace = circleExtrude.sideFaces.item(sideFaceIndex)
             cylinderBody = circleExtrude.bodies.item(0)
 
-# create text
-            sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
-            texts = sketch.sketchTexts
-            textInput = texts.createInput2(text, fontSize)
-            faceLength = 2 * math.pi * (radiusOffset + radius)
-            textDiagonalPoint = adsk.core.Point3D.create(faceLength, -height, 0)
-            if isSingleLined:
-                sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
-                lines = sketch.sketchCurves.sketchLines
-                path = lines.addByTwoPoints(adsk.core.Point3D.create(0,0,0), adsk.core.Point3D.create(10,0,0))
-                textInput.setAsAlongPath(path, False, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, characterSpacing)
+            textCurves = None
+
+            if usePicture:
+                # textCurves = getCurvesFromImage('test.jpg', rootComp)
+                _ui.messageBox('not implemented')
+                return
             else:
-                textInput.setAsMultiLine(adsk.core.Point3D.create(0, 0, 0), textDiagonalPoint, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, adsk.core.VerticalAlignments.TopVerticalAlignment, characterSpacing)
-            text = texts.add(textInput)
+                # create text
+                sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
+                texts = sketch.sketchTexts
+                textInput = texts.createInput2(text, fontSize)
+                faceLength = 2 * math.pi * (radiusOffset + radius)
+                textDiagonalPoint = adsk.core.Point3D.create(faceLength, -height, 0)
+                if isSingleLined:
+                    sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
+                    lines = sketch.sketchCurves.sketchLines
+                    path = lines.addByTwoPoints(adsk.core.Point3D.create(0,0,0), adsk.core.Point3D.create(10,0,0))
+                    textInput.setAsAlongPath(path, False, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, characterSpacing)
+                else:
+                    textInput.setAsMultiLine(adsk.core.Point3D.create(0, 0, 0), textDiagonalPoint, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, adsk.core.VerticalAlignments.TopVerticalAlignment, characterSpacing)
+                text = texts.add(textInput)
 
-            # check if text cant fit on cylinder
-            # height
-            ratio = abs(text.boundingBox.maxPoint.y - text.boundingBox.minPoint.y) / height
-            if ratio > 1:
-                text.height = text.height / ratio
-                
-            # width
-            ratio = abs(text.boundingBox.maxPoint.x - text.boundingBox.minPoint.x) / faceLength
-            if ratio > 1:
-                text.height = text.height / ratio
+                # check if text cant fit on cylinder
+                # height
+                ratio = abs(text.boundingBox.maxPoint.y - text.boundingBox.minPoint.y) / height
+                if ratio > 1:
+                    text.height = text.height / ratio
+                    
+                # width
+                ratio = abs(text.boundingBox.maxPoint.x - text.boundingBox.minPoint.x) / faceLength
+                if ratio > 1:
+                    text.height = text.height / ratio
 
-            textCurves = text.explode()
+                textCurves = text.explode()
 
 # put text on cylinder's face
             textSketch = wrapSketch(cylinderSideFace, textCurves, radiusOffset)
@@ -870,8 +913,8 @@ class MyCommandExecuteHandler(adsk.core.CommandEventHandler):
                 # create sketch rectangle
                 sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
                 lines = sketch.sketchCurves.sketchLines
-                firstPoint = adsk.core.Point3D.create(slotWidth, radius - thickness, 0)
-                secondPoint = adsk.core.Point3D.create(-slotWidth, radius + thickness, 0)
+                firstPoint = adsk.core.Point3D.create(slotWidth, radius - thickness - radiusOffset, 0)
+                secondPoint = adsk.core.Point3D.create(-slotWidth, radius + thickness + radiusOffset, 0)
                 lineList:adsk.fusion.SketchLineList = lines.addTwoPointRectangle(firstPoint, secondPoint)
                 
                 # # create profile from rectangle
@@ -940,6 +983,8 @@ class myCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
             tab1ChildInputs.addBoolValueInput('Slot', 'Make slot?', True, '', True)
 
             tab1ChildInputs.addValueInput('Slot width', 'Slot width (cm)', '', adsk.core.ValueInput.createByReal(0.02))
+            
+            tab1ChildInputs.addBoolValueInput('Use picture', 'Use picture?', True, '', False)
 
         except:
             _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
