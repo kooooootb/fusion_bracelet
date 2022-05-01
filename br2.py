@@ -1,13 +1,11 @@
 #Author-
 #Description-
 
-from operator import countOf
-from time import sleep
 import adsk.core, adsk.fusion, adsk.cam, traceback, math
 
 import os, sys
 
-import numpy as np
+# import numpy as np
 # import cv2
 
 _app = None
@@ -15,26 +13,28 @@ _ui = None
 _design = None
 _rowNumber = 0
 _maxint = 99999999
+_dirpath = os.path.dirname(os.path.realpath(__file__))
+
+sys.path.insert(1, _dirpath)
+from menuModule import getInputs
+from menuModule import inputElement
 
 _pointsFilename = "C:\\Users\\zavgm\\AppData\\Roaming\\Autodesk\\Autodesk Fusion 360\\API\\Scripts\\br2\\imageText.txt"
 
 _handlers = []
 
-# def download():
-#     app = adsk.core.Application.get()
-#     ui  = app.userInterface
+def download():
+    app = adsk.core.Application.get()
+    ui  = app.userInterface
 
-#     install_numpy = sys.path[0] +'\Python\python.exe -m pip install numpy'
-#     install_numpy = sys.path[0] +'\Python\python.exe -m pip install opencv-python'
-
-#     os.system('cmd /c "' + install_numpy + '"')
+    install_numpy = sys.path[0] +'\Python\python.exe -m pip install numpy'
+    os.system('cmd /c "' + install_numpy + '"')
     
-#     try:
-#         import numpy as np
-#         import cv2
-#         ui.messageBox("Installation succeeded !")
-#     except:
-#         ui.messageBox("Failed when executing 'import scipy'")
+    try:
+        import numpy as np
+        # import cv2
+    except:
+        ui.messageBox("Failed importing")
 
 # def getCurvesFromImage(filename:string, rootComp:adsk.fusion.Component):
 #     image = cv2.imread(filename, cv2.IMREAD_UNCHANGED)# reading image
@@ -383,495 +383,574 @@ def updateSliders(sliderInputs):
         id = str(i)
         sliderInputs.addFloatSlidersCommandInput("slider_configuration_" + id, "slider_" + id, "cm", 0, 10.0 * value)
 
-class MyCommandInputChangedHandler(adsk.core.InputChangedEventHandler):
-    def __init__(self):
-        super().__init__()
-    def notify(self, args):
-        try:
-            eventArgs = adsk.core.InputChangedEventArgs.cast(args)
-            inputs = eventArgs.inputs
-            cmdInput = eventArgs.input
+def task():
+    try:
+        # inputs = command.commandInputs
+        inputs = getInputs(_dirpath)
 
-            #controller for slider otdel'no
-            if cmdInput.id == "slider_controller":
-                sliderGroup = adsk.core.GroupCommandInput.cast(cmdInput.parentCommandInput)
-                sliderInputs = sliderGroup.children
-                updateSliders(sliderInputs)
-            else:
-                tableInput = inputs.itemById('table')
-                if cmdInput.id == 'tableAdd':
-                    addRowToTable(tableInput)
-                elif cmdInput.id == 'tableDelete':
-                    if tableInput.selectedRow  == -1:
-                        _ui.messageBox('Select one row to delete.')
-                    else:
-                        tableInput.deleteRow(tableInput.selectedRow)
+        radius = 2.0
+        height = 1.0
+        thickness = 0.2
+        text = ''
+        fontSize = 0.5
+        radiusOffset = 0.1
+        characterSpacing = 0
+        isSingleLined = True
+        makeSlot = True
+        slotWidth = 0.02
+        usePicture = False
+        imageScaling = 0.95
 
-        except:
-            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
-
-class MyCommandDestroyHandler(adsk.core.CommandEventHandler):
-    def __init__(self):
-        super().__init__()
-    
-    def notify(self, args):
-        try:
-            adsk.terminate()
-        except:
-            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
-
-class MyCommandExecuteHandler(adsk.core.CommandEventHandler):
-    def __init__(self):
-        super().__init__()
-
-    def notify(self, args):
-        try:
-            command = args.firingEvent.sender
-            inputs = command.commandInputs
-
-            radius = 2.0
-            height = 1.0
-            thickness = 0.2
-            text = 'Sample'
-            fontSize = 0.5
-            radiusOffset = 0.1
-            characterSpacing = 0
-            isSingleLined = True
-            makeSlot = True
-            slotWidth = None
-            usePicture = False
-            imageScaling = 0.95
-
-            for input in inputs:
-                if input.id == 'Radius':
-                    if input.value <= 0:
-                        input.value = 1
-                    radius = input.value
-                if input.id == 'Height':
-                    height = input.value
-                if input.id == 'Thickness':
-                    thickness = input.value
-                if input.id == 'Text':
-                    text = input.value
-                if input.id == 'Font size':
-                    fontSize = input.value
-                if input.id == 'Radius offset':
-                    radiusOffset = input.value
-                if input.id == 'Character spacing':
-                    characterSpacing = input.value
-                if input.id == 'Single line':
-                    isSingleLined = input.value
-                if input.id == 'Slot':
-                    makeSlot = input.value
-                if input.id == 'Slot width':
-                    slotWidth = input.value
-                if input.id == 'Use picture':
-                    usePicture = input.value
-                if input.id == 'Image scaling':
-                    imageScaling = input.value
+        for input in inputs:
+            if input.id == 'Radius':
+                if input.value <= 0:
+                    input.value = 1
+                radius = input.value
+            if input.id == 'Height':
+                height = input.value
+            if input.id == 'Thickness':
+                thickness = input.value
+            if input.id == 'Text':
+                text = input.value
+            if input.id == 'Font_size':
+                fontSize = input.value
+            if input.id == 'Radius_offset':
+                radiusOffset = input.value
+            if input.id == 'Character_spacing':
+                characterSpacing = input.value
+            if input.id == 'Single_line':
+                isSingleLined = input.value
+            if input.id == 'Slot':
+                makeSlot = input.value
+            if input.id == 'Slot_width':
+                slotWidth = input.value
+            if input.id == 'Use_picture':
+                usePicture = input.value
+            if input.id == 'Image_scaling':
+                imageScaling = input.value
 
 # set initial variables
-            rootComp: adsk.fusion.Component = _app.activeProduct.rootComponent
-            sketch:adsk.fusion.Sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
-            timeline:adsk.fusion.Timeline = _design.timeline
+        rootComp: adsk.fusion.Component = _app.activeProduct.rootComponent
+        sketch:adsk.fusion.Sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
+        timeline:adsk.fusion.Timeline = _design.timeline
 
-            offsetDistance:adsk.core.ValueInput = None
-            if thickness < 0.1:
-                offsetDistance = adsk.core.ValueInput.createByReal((-1) * thickness / 10)
-            else:
-                offsetDistance = adsk.core.ValueInput.createByReal(-0.01)
+        offsetDistance:adsk.core.ValueInput = None
+        if thickness < 0.1:
+            offsetDistance = adsk.core.ValueInput.createByReal((-1) * thickness / 10)
+        else:
+            offsetDistance = adsk.core.ValueInput.createByReal(-0.01)
 
 # set features and operations
-            extrudeFeatures:adsk.fusion.ExtrudeFeatures = rootComp.features.extrudeFeatures
-            patchFeatures:adsk.fusion.PatchFeatures = rootComp.features.patchFeatures
-            splitFaceFeatures:adsk.fusion.SplitFaceFeatures = rootComp.features.splitFaceFeatures
-            loftFeatures:adsk.fusion.LoftFeatures = rootComp.features.loftFeatures
-            combineFeatures:adsk.fusion.CombineFeatures = rootComp.features.combineFeatures
-            removeFeatures:adsk.fusion.RemoveFeatures = rootComp.features.removeFeatures
-            unstitchFeatures:adsk.fusion.UnstitchFeatures = rootComp.features.unstitchFeatures
-            offsetFeatures:adsk.fusion.OffsetFeatures = rootComp.features.offsetFeatures
-            stitchFeatures:adsk.fusion.StitchFeatures = rootComp.features.stitchFeatures
-            reverseNormalFeatures:adsk.fusion.ReverseNormalFeatures = rootComp.features.reverseNormalFeatures
-            scaleFeatures:adsk.fusion.ScaleFeatures = rootComp.features.scaleFeatures
-            ruledFeatures:adsk.fusion.RuledSurfaceFeatures = rootComp.features.ruledSurfaceFeatures
+        extrudeFeatures:adsk.fusion.ExtrudeFeatures = rootComp.features.extrudeFeatures
+        patchFeatures:adsk.fusion.PatchFeatures = rootComp.features.patchFeatures
+        splitFaceFeatures:adsk.fusion.SplitFaceFeatures = rootComp.features.splitFaceFeatures
+        loftFeatures:adsk.fusion.LoftFeatures = rootComp.features.loftFeatures
+        combineFeatures:adsk.fusion.CombineFeatures = rootComp.features.combineFeatures
+        removeFeatures:adsk.fusion.RemoveFeatures = rootComp.features.removeFeatures
+        unstitchFeatures:adsk.fusion.UnstitchFeatures = rootComp.features.unstitchFeatures
+        offsetFeatures:adsk.fusion.OffsetFeatures = rootComp.features.offsetFeatures
+        stitchFeatures:adsk.fusion.StitchFeatures = rootComp.features.stitchFeatures
+        reverseNormalFeatures:adsk.fusion.ReverseNormalFeatures = rootComp.features.reverseNormalFeatures
+        scaleFeatures:adsk.fusion.ScaleFeatures = rootComp.features.scaleFeatures
+        ruledFeatures:adsk.fusion.RuledSurfaceFeatures = rootComp.features.ruledSurfaceFeatures
 
-            newBodyOperation = adsk.fusion.FeatureOperations.NewBodyFeatureOperation
-            joinBodyOperation = adsk.fusion.FeatureOperations.JoinFeatureOperation
-            cutBodyOperation = adsk.fusion.FeatureOperations.CutFeatureOperation
+        newBodyOperation = adsk.fusion.FeatureOperations.NewBodyFeatureOperation
+        joinBodyOperation = adsk.fusion.FeatureOperations.JoinFeatureOperation
+        cutBodyOperation = adsk.fusion.FeatureOperations.CutFeatureOperation
 
 # create cylinder
-            circles = sketch.sketchCurves.sketchCircles
-            circle = circles.addByCenterRadius(adsk.core.Point3D.create(0,0,0), radius)
-            circleProfile = rootComp.createOpenProfile(circle)
+        circles = sketch.sketchCurves.sketchCircles
+        circle = circles.addByCenterRadius(adsk.core.Point3D.create(0,0,0), radius)
+        circleProfile = rootComp.createOpenProfile(circle)
 
-            extInput = extrudeFeatures.createInput(circleProfile, newBodyOperation)
-            extInput.setThinExtrude(adsk.fusion.ThinExtrudeWallLocation.Center, adsk.core.ValueInput.createByReal(thickness))
-            extInput.setSymmetricExtent(adsk.core.ValueInput.createByReal(height / 2), False)
-            circleExtrude = extrudeFeatures.add(extInput)
-            sideFaceIndex = 0
-            if circleExtrude.sideFaces.item(1).area > circleExtrude.sideFaces.item(0).area:
-                sideFaceIndex = 1
-            cylinderSideFace = circleExtrude.sideFaces.item(sideFaceIndex)
-            cylinderBody = circleExtrude.bodies.item(0)
+        extInput = extrudeFeatures.createInput(circleProfile, newBodyOperation)
+        extInput.setThinExtrude(adsk.fusion.ThinExtrudeWallLocation.Center, adsk.core.ValueInput.createByReal(thickness))
+        extInput.setSymmetricExtent(adsk.core.ValueInput.createByReal(height / 2), False)
+        circleExtrude = extrudeFeatures.add(extInput)
+        sideFaceIndex = 0
+        if circleExtrude.sideFaces.item(1).area > circleExtrude.sideFaces.item(0).area:
+            sideFaceIndex = 1
+        cylinderSideFace = circleExtrude.sideFaces.item(sideFaceIndex)
+        cylinderBody = circleExtrude.bodies.item(0)
 
-            textCurves = []
+        textCurves = []
 
-            if usePicture:
-                # textCurves = getCurvesFromImage('test.jpg', rootComp)
-                # os.system("py imageTest.py")
-                # sleep(2)
+        if usePicture:
+            # textCurves = getCurvesFromImage('test.jpg', rootComp)
+            # os.system("py imageTest.py")
+            # sleep(2)
 
-                fs = open(_pointsFilename, "rb")
-                pointsCol = adsk.core.ObjectCollection.create()
-                
-                x = 0
-                y = 0
-                isY = False
-                count = 0
-                xMax = 0
-                yMax = 0
-                xMin = _maxint
-                yMin = _maxint
+            fs = open(_pointsFilename, "rb")
+            pointsCol = adsk.core.ObjectCollection.create()
+            
+            x = 0
+            y = 0
+            isY = False
+            count = 0
+            xMax = 0
+            yMax = 0
+            xMin = _maxint
+            yMin = _maxint
+            sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
+            lines = sketch.sketchCurves.sketchLines
+
+            for num in fs:
+                if count > 0:
+                    if isY:
+                        y = float(num)
+                        if x > xMax:
+                            xMax = x
+                        if y > yMax:
+                            yMax = y
+                        if x < xMin:
+                            xMin = x
+                        if y < yMin:
+                            yMin = y
+                        point = adsk.core.Point3D.create(x,y,0)
+                        pointsCol.add(point)
+                        isY = False
+                    else:
+                        x = float(num)
+                        isY = True
+                    count -= 1
+                else:
+                    count = float(num)
+                    count *= 2
+
+                    if pointsCol.count > 1:
+                        firstPoint = adsk.core.Point3D.create(0,0,0)
+                        secondPoint = adsk.core.Point3D.create(0,0,0)
+
+                        firstPoint = pointsCol[pointsCol.count - 1]
+
+                        for point in pointsCol:
+                            secondPoint = point
+
+                            curve = lines.addByTwoPoints(firstPoint, secondPoint)
+                            textCurves.append(curve)
+
+                            firstPoint = point
+                        
+                        pointsCol = adsk.core.ObjectCollection.create()
+                    
+            realHeight = height
+            realLength = (radius + (thickness / 2) + radiusOffset) * 2 * math.pi
+
+            heightRatio = realHeight / (yMax - yMin)
+            lengthRatio = realLength / (xMax - xMin)
+            ratio = 0
+
+            if heightRatio < lengthRatio:
+                ratio = heightRatio
+            else:
+                ratio = lengthRatio
+
+            ratio *= imageScaling
+            
+            sketchCol = adsk.core.ObjectCollection.create()
+            sketchCol.add(sketch)
+            refPoint = sketch.sketchPoints.item(0)
+            scaleInput = scaleFeatures.createInput(sketchCol, refPoint, adsk.core.ValueInput.createByReal(ratio))
+            scaleFeatures.add(scaleInput)
+
+            # _ui.messageBox('not implemented')
+            # return
+        else:
+            # create text
+            sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
+            texts = sketch.sketchTexts
+            textInput = texts.createInput2(text, fontSize)
+            faceLength = 2 * math.pi * (radiusOffset + radius)
+            textDiagonalPoint = adsk.core.Point3D.create(faceLength, -height, 0)
+            if isSingleLined:
                 sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
                 lines = sketch.sketchCurves.sketchLines
-
-                for num in fs:
-                    if count > 0:
-                        if isY:
-                            y = float(num)
-                            if x > xMax:
-                                xMax = x
-                            if y > yMax:
-                                yMax = y
-                            if x < xMin:
-                                xMin = x
-                            if y < yMin:
-                                yMin = y
-                            point = adsk.core.Point3D.create(x,y,0)
-                            pointsCol.add(point)
-                            isY = False
-                        else:
-                            x = float(num)
-                            isY = True
-                        count -= 1
-                    else:
-                        count = float(num)
-                        count *= 2
-
-                        if pointsCol.count > 1:
-                            firstPoint = adsk.core.Point3D.create(0,0,0)
-                            secondPoint = adsk.core.Point3D.create(0,0,0)
-
-                            firstPoint = pointsCol[pointsCol.count - 1]
-
-                            for point in pointsCol:
-                                secondPoint = point
-
-                                curve = lines.addByTwoPoints(firstPoint, secondPoint)
-                                textCurves.append(curve)
-
-                                firstPoint = point
-                            
-                            pointsCol = adsk.core.ObjectCollection.create()
-                        
-                realHeight = height
-                realLength = (radius + (thickness / 2) + radiusOffset) * 2 * math.pi
-
-                heightRatio = realHeight / (yMax - yMin)
-                lengthRatio = realLength / (xMax - xMin)
-                ratio = 0
-
-                if heightRatio < lengthRatio:
-                    ratio = heightRatio
-                else:
-                    ratio = lengthRatio
-
-                ratio *= imageScaling
-                
-                sketchCol = adsk.core.ObjectCollection.create()
-                sketchCol.add(sketch)
-                refPoint = sketch.sketchPoints.item(0)
-                scaleInput = scaleFeatures.createInput(sketchCol, refPoint, adsk.core.ValueInput.createByReal(ratio))
-                scaleFeatures.add(scaleInput)
-
-                # _ui.messageBox('not implemented')
-                # return
+                path = lines.addByTwoPoints(adsk.core.Point3D.create(0,0,0), adsk.core.Point3D.create(10,0,0))
+                textInput.setAsAlongPath(path, False, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, characterSpacing)
             else:
-                # create text
-                sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
-                texts = sketch.sketchTexts
-                textInput = texts.createInput2(text, fontSize)
-                faceLength = 2 * math.pi * (radiusOffset + radius)
-                textDiagonalPoint = adsk.core.Point3D.create(faceLength, -height, 0)
-                if isSingleLined:
-                    sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
-                    lines = sketch.sketchCurves.sketchLines
-                    path = lines.addByTwoPoints(adsk.core.Point3D.create(0,0,0), adsk.core.Point3D.create(10,0,0))
-                    textInput.setAsAlongPath(path, False, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, characterSpacing)
-                else:
-                    textInput.setAsMultiLine(adsk.core.Point3D.create(0, 0, 0), textDiagonalPoint, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, adsk.core.VerticalAlignments.TopVerticalAlignment, characterSpacing)
-                text = texts.add(textInput)
+                textInput.setAsMultiLine(adsk.core.Point3D.create(0, 0, 0), textDiagonalPoint, adsk.core.HorizontalAlignments.CenterHorizontalAlignment, adsk.core.VerticalAlignments.TopVerticalAlignment, characterSpacing)
+            text = texts.add(textInput)
 
-                # check if text cant fit on cylinder
-                # height
-                ratio = abs(text.boundingBox.maxPoint.y - text.boundingBox.minPoint.y) / height
-                if ratio > 1:
-                    text.height = text.height / ratio
-                    
-                # width
-                ratio = abs(text.boundingBox.maxPoint.x - text.boundingBox.minPoint.x) / faceLength
-                if ratio > 1:
-                    text.height = text.height / ratio
+            # check if text cant fit on cylinder
+            # height
+            ratio = 1.05 * abs(text.boundingBox.maxPoint.y - text.boundingBox.minPoint.y) / height
+            if ratio > 1:
+                text.height = text.height / ratio
+                
+            # width
+            ratio = 1.05 * abs(text.boundingBox.maxPoint.x - text.boundingBox.minPoint.x) / faceLength
+            if ratio > 1:
+                text.height = text.height / ratio
 
-                textCurves = text.explode()
+            textCurves = text.explode()
 
 # put text on cylinder's face
-            textSketch = wrapSketch(cylinderSideFace, textCurves, radiusOffset)
-            for curve in textCurves:
-                curve.deleteMe()
+        textSketch = wrapSketch(cylinderSideFace, textCurves, radiusOffset)
+        for curve in textCurves:
+            curve.deleteMe()
 
 # move text(kostyl)
-            textCurves = textSketch.sketchCurves
-            transform = textSketch.transform
-            dx = 0
-            dy = 0
-            dLowest = textCurves.item(0).boundingBox.minPoint.z
-            dHighest = textCurves.item(0).boundingBox.maxPoint.z
-            for curve in textCurves:
-                if curve.boundingBox.maxPoint.z > dHighest:
-                    dHighest = curve.boundingBox.maxPoint.z
-                if curve.boundingBox.minPoint.z < dLowest:
-                    dLowest = curve.boundingBox.minPoint.z
-            dz = (dHighest + dLowest) / 2
-            dz = -dz
-            transform.translation = adsk.core.Vector3D.create(dx,dy,dz)
-            curvesCol = adsk.core.ObjectCollection.create()
-            for sk in textCurves:
-                curvesCol.add(sk)
-            textSketch.move(curvesCol, transform)
+        textCurves = textSketch.sketchCurves
+        transform = textSketch.transform
+        dx = 0
+        dy = 0
+        dLowest = textCurves.item(0).boundingBox.minPoint.z
+        dHighest = textCurves.item(0).boundingBox.maxPoint.z
+        for curve in textCurves:
+            if curve.boundingBox.maxPoint.z > dHighest:
+                dHighest = curve.boundingBox.maxPoint.z
+            if curve.boundingBox.minPoint.z < dLowest:
+                dLowest = curve.boundingBox.minPoint.z
+        dz = (dHighest + dLowest) / 2
+        dz = -dz
+        transform.translation = adsk.core.Vector3D.create(dx,dy,dz)
+        curvesCol = adsk.core.ObjectCollection.create()
+        for sk in textCurves:
+            curvesCol.add(sk)
+        textSketch.move(curvesCol, transform)
 
 # arrays for created faces
-            faces = adsk.core.ObjectCollection.create()
-            curvesCollections = []
+        faces = adsk.core.ObjectCollection.create()
+        curvesCollections = []
 
 # creating faces using patches
-            while curvesCol.count > 0:
-                currentCurvesInput = adsk.core.ObjectCollection.create()#collection for edges on current attempt
-                patchInput = None
-                index = 0
-                # try to create patch, if cant => add next edge to collection and try again
-                inputCurvesClosed = False
-                while inputCurvesClosed == False:
-                    currentCurvesInput.add(curvesCol.item(index))
-                    patchInput = patchFeatures.createInput(currentCurvesInput, newBodyOperation)
-                    index += 1
-                    inputCurvesClosed = patchInput.boundaryCurve.isClosed
-                patch = patchFeatures.add(patchInput)
-                resFace = patch.faces.item(0)
+        while curvesCol.count > 0:
+            currentCurvesInput = adsk.core.ObjectCollection.create()#collection for edges on current attempt
+            patchInput = None
+            index = 0
+            # try to create patch, if cant => add next edge to collection and try again
+            inputCurvesClosed = False
+            while inputCurvesClosed == False:
+                currentCurvesInput.add(curvesCol.item(index))
+                patchInput = patchFeatures.createInput(currentCurvesInput, newBodyOperation)
+                index += 1
+                inputCurvesClosed = patchInput.boundaryCurve.isClosed
+            patch = patchFeatures.add(patchInput)
+            resFace = patch.faces.item(0)
 
-                # check if surface's direction is wrong and fix it
-                facePoint = resFace.pointOnFace
-                radiusVector = adsk.core.Vector3D.create(facePoint.x, facePoint.y, facePoint.z)
-                (_, normalVector) = resFace.evaluator.getNormalAtPoint(facePoint)
-                angle = normalVector.angleTo(radiusVector)
-                if angle > (math.pi / 2):
-                    resFaceBodyCol = adsk.core.ObjectCollection.create()
-                    resFaceBodyCol.add(resFace.body)
-                    resFace = reverseNormalFeatures.add(resFaceBodyCol).faces.item(0)
+            # check if surface's direction is wrong and fix it
+            facePoint = resFace.pointOnFace
+            radiusVector = adsk.core.Vector3D.create(facePoint.x, facePoint.y, facePoint.z)
+            (_, normalVector) = resFace.evaluator.getNormalAtPoint(facePoint)
+            angle = normalVector.angleTo(radiusVector)
+            if angle > (math.pi / 2):
+                resFaceBodyCol = adsk.core.ObjectCollection.create()
+                resFaceBodyCol.add(resFace.body)
+                resFace = reverseNormalFeatures.add(resFaceBodyCol).faces.item(0)
 
-                faces.add(resFace)
-                curvesCollections.append(currentCurvesInput)
-                # delete used curves from collection
-                for curve in currentCurvesInput:
-                    curvesCol.removeByItem(curve)
+            faces.add(resFace)
+            curvesCollections.append(currentCurvesInput)
+            # delete used curves from collection
+            for curve in currentCurvesInput:
+                curvesCol.removeByItem(curve)
 
 # project faces on cylinder using split face
-            facesToSplitCollection = adsk.core.ObjectCollection.create()
-            facesToSplitCollection.add(cylinderSideFace)
- 
-            createdProjectionsCollection = adsk.core.ObjectCollection.create()
-            createdFacesCollection = adsk.core.ObjectCollection.create()
-            previousProjection = None
-            previousFace = None
-            parentFace = None
-            newFace = None
-            faceIndex = 0
-            arrayOffset = 0
-            innerFaces = []
-            isWhole = []
-            currentInnerFacesCollection = adsk.core.ObjectCollection.create()
-            flSuccess = True
-            for connectedCurves in curvesCollections:
-                splitInput = splitFaceFeatures.createInput(facesToSplitCollection, connectedCurves, True)
-                splitInput.setClosestPointSplitType()
-                
-                try:
-                    splitting = splitFaceFeatures.add(splitInput)
+        facesToSplitCollection = adsk.core.ObjectCollection.create()
+        facesToSplitCollection.add(cylinderSideFace)
 
-                    # facesToSplitCollection = adsk.core.ObjectCollection.create()
-                    distance = _maxint
-                    previousProjection = None
+        createdProjectionsCollection = adsk.core.ObjectCollection.create()
+        createdFacesCollection = adsk.core.ObjectCollection.create()
+        previousProjection = None
+        previousFace = None
+        parentFace = None
+        newFace = None
+        faceIndex = 0
+        arrayOffset = 0
+        innerFaces = []
+        isWhole = []
+        currentInnerFacesCollection = adsk.core.ObjectCollection.create()
+        flSuccess = True
+        for connectedCurves in curvesCollections:
+            splitInput = splitFaceFeatures.createInput(facesToSplitCollection, connectedCurves, True)
+            splitInput.setClosestPointSplitType()
+            
+            try:
+                splitting = splitFaceFeatures.add(splitInput)
 
-                    for face in splitting.faces:
-                        facesToSplitCollection.removeByItem(face)
-                        sumDistance = getDistancesEdSk(face.edges, connectedCurves)
-                        if sumDistance < distance:
-                            distance = sumDistance
-                            if previousProjection != None:
-                                facesToSplitCollection.add(previousProjection)
-                            previousProjection = face
-                        else:
-                            facesToSplitCollection.add(face)
-
-                    createdProjectionsCollection.add(previousProjection)
-                    previousFace = faces.item(faceIndex)
-                    createdFacesCollection.add(previousFace)
-                    isWhole.append(True)
-
-                    if flSuccess == False:
-                        innerFaces.append(currentInnerFacesCollection)
-                        flSuccess = True
-                except:
-                    # rollback
-                    timeline.moveToPreviousStep()
-                    timeline.deleteAllAfterMarker()
-
-                    # remove last elements
-                    # createdProjectionsCollection.removeByItem(previousProjection)
-                    createdFacesCollection.removeByItem(previousFace)
-                    isWhole.pop()
-
-                    # set and make split on projection
-                    prevProjCollection = adsk.core.ObjectCollection.create()
-                    prevProjCollection.add(previousProjection)
-                    # splitInput = splitFaceFeatures.createInput(prevProjCollection, connectedCurves, True)
-                    splitInput = splitFaceFeatures.createInput(createdProjectionsCollection, connectedCurves, True)
-                    splitInput.setClosestPointSplitType()
-                    splitting = splitFaceFeatures.add(splitInput)
-
-                    # choose which face is in use
-                    # createdProjectionsCollection = adsk.core.ObjectCollection.create()
-                    distance = _maxint
-                    newFace = None
-                    previousProjection = None
-
-                    for face in splitting.faces:
-                        createdProjectionsCollection.removeByItem(face)
-                        tmpDist = getDistancesEdSk(face.edges, connectedCurves)
-                        if tmpDist < distance:
-                            distance = tmpDist
-                            if newFace != None:
-                                createdProjectionsCollection.add(newFace)
-                            newFace = face
-                        else:
-                            createdProjectionsCollection.add(face)
-                    facesToSplitCollection.add(newFace)
-
-                    # if splitting.faces.item(0).edges.count == connectedCurves.count:
-                    #     previousProjection = splitting.faces.item(1)
-                    #     newFace = splitting.faces.item(0)
-                    # else:
-                    #     previousProjection = splitting.faces.item(0)
-                    #     newFace = splitting.faces.item(1)
-                    # createdProjectionsCollection.add(previousProjection)
-                    # facesToSplitCollection.add(newFace)
-
-                    # split face
-                    currentFaceCollection = adsk.core.ObjectCollection.create()
-                    currentFaceCollection.add(previousFace)
-                    splitInput = splitFaceFeatures.createInput(currentFaceCollection, newFace, True)
-                    splitInput.setClosestPointSplitType()
-                    splitting = splitFaceFeatures.add(splitInput)
-
-                    # unstitch splitted body
-                    unstitchCollection = adsk.core.ObjectCollection.create()
-                    unstitchCollection.add(splitting.bodies.item(0))
-                    unstitch = unstitchFeatures.add(unstitchCollection)
-
-                    # if unstitch.faces.item(0).boundingBox.maxPoint.distanceTo(parentPoint) > unstitch.faces.item(1).boundingBox.maxPoint.distanceTo(parentPoint):
-                    #     newFace = unstitch.faces.item(0)
-                    #     previousFace = unstitch.faces.item(1)
-                    # else:
-                    #     newFace = unstitch.faces.item(1)
-                    #     previousFace = unstitch.faces.item(0)
-
-                    distance = _maxint
-                    if getDistancesEdEd(unstitch.faces.item(0).edges, newFace.edges) > getDistancesEdEd(unstitch.faces.item(1).edges, newFace.edges):
-                        newFace = unstitch.faces.item(1)
-                        previousFace = unstitch.faces.item(0)
-                    else:
-                        newFace = unstitch.faces.item(0)
-                        previousFace = unstitch.faces.item(1)
-                    
-                    if flSuccess:
-                        currentInnerFacesCollection = adsk.core.ObjectCollection.create()
-                        flSuccess = False
-                    currentInnerFacesCollection.add(newFace)
-                    
-                    createdFacesCollection.add(previousFace)
-                    isWhole.append(False)
-
-                    removeFeatures.add(faces.item(faceIndex).body)
-                    arrayOffset += 1
-
-                faceIndex += 1
-            if currentInnerFacesCollection.count != 0:
-                innerFaces.append(currentInnerFacesCollection)
-
-# create solid body using lofts
-            faceIndex = 0
-            innerFaceIndex = 0
-            resultBody:adsk.fusion.BRepBody = None
-
-            for face in createdFacesCollection:
-                currentFace:adsk.fusion.BRepFace = createdFacesCollection.item(faceIndex)
-                currentProj:adsk.fusion.BRepFace = None
-                # currentProj:adsk.fusion.BRepFace = createdProjectionsCollection.item(faceIndex)
+                # facesToSplitCollection = adsk.core.ObjectCollection.create()
                 distance = _maxint
-                for splFace in createdProjectionsCollection:
-                    tmpDist = getDistancesEdEd(splFace.edges, currentFace.edges)
+                previousProjection = None
+
+                for face in splitting.faces:
+                    facesToSplitCollection.removeByItem(face)
+                    sumDistance = getDistancesEdSk(face.edges, connectedCurves)
+                    if sumDistance < distance:
+                        distance = sumDistance
+                        if previousProjection != None:
+                            facesToSplitCollection.add(previousProjection)
+                        previousProjection = face
+                    else:
+                        facesToSplitCollection.add(face)
+
+                createdProjectionsCollection.add(previousProjection)
+                previousFace = faces.item(faceIndex)
+                createdFacesCollection.add(previousFace)
+                isWhole.append(True)
+
+                if flSuccess == False:
+                    innerFaces.append(currentInnerFacesCollection)
+                    flSuccess = True
+            except:
+                # rollback
+                timeline.moveToPreviousStep()
+                timeline.deleteAllAfterMarker()
+
+                # remove last elements
+                # createdProjectionsCollection.removeByItem(previousProjection)
+                createdFacesCollection.removeByItem(previousFace)
+                isWhole.pop()
+
+                # set and make split on projection
+                prevProjCollection = adsk.core.ObjectCollection.create()
+                prevProjCollection.add(previousProjection)
+                # splitInput = splitFaceFeatures.createInput(prevProjCollection, connectedCurves, True)
+                splitInput = splitFaceFeatures.createInput(createdProjectionsCollection, connectedCurves, True)
+                splitInput.setClosestPointSplitType()
+                splitting = splitFaceFeatures.add(splitInput)
+
+                # choose which face is in use
+                # createdProjectionsCollection = adsk.core.ObjectCollection.create()
+                distance = _maxint
+                newFace = None
+                previousProjection = None
+
+                for face in splitting.faces:
+                    createdProjectionsCollection.removeByItem(face)
+                    tmpDist = getDistancesEdSk(face.edges, connectedCurves)
                     if tmpDist < distance:
                         distance = tmpDist
-                        currentProj = splFace
-                createdProjectionsCollection.removeByItem(currentProj)
+                        if newFace != None:
+                            createdProjectionsCollection.add(newFace)
+                        newFace = face
+                    else:
+                        createdProjectionsCollection.add(face)
+                facesToSplitCollection.add(newFace)
 
-                if isWhole[faceIndex]:
-                    # create body from projection
+                # if splitting.faces.item(0).edges.count == connectedCurves.count:
+                #     previousProjection = splitting.faces.item(1)
+                #     newFace = splitting.faces.item(0)
+                # else:
+                #     previousProjection = splitting.faces.item(0)
+                #     newFace = splitting.faces.item(1)
+                # createdProjectionsCollection.add(previousProjection)
+                # facesToSplitCollection.add(newFace)
+
+                # split face
+                currentFaceCollection = adsk.core.ObjectCollection.create()
+                currentFaceCollection.add(previousFace)
+                splitInput = splitFaceFeatures.createInput(currentFaceCollection, newFace, True)
+                splitInput.setClosestPointSplitType()
+                splitting = splitFaceFeatures.add(splitInput)
+
+                # unstitch splitted body
+                unstitchCollection = adsk.core.ObjectCollection.create()
+                unstitchCollection.add(splitting.bodies.item(0))
+                unstitch = unstitchFeatures.add(unstitchCollection)
+
+                # if unstitch.faces.item(0).boundingBox.maxPoint.distanceTo(parentPoint) > unstitch.faces.item(1).boundingBox.maxPoint.distanceTo(parentPoint):
+                #     newFace = unstitch.faces.item(0)
+                #     previousFace = unstitch.faces.item(1)
+                # else:
+                #     newFace = unstitch.faces.item(1)
+                #     previousFace = unstitch.faces.item(0)
+
+                distance = _maxint
+                if getDistancesEdEd(unstitch.faces.item(0).edges, newFace.edges) > getDistancesEdEd(unstitch.faces.item(1).edges, newFace.edges):
+                    newFace = unstitch.faces.item(1)
+                    previousFace = unstitch.faces.item(0)
+                else:
+                    newFace = unstitch.faces.item(0)
+                    previousFace = unstitch.faces.item(1)
+                
+                if flSuccess:
+                    currentInnerFacesCollection = adsk.core.ObjectCollection.create()
+                    flSuccess = False
+                currentInnerFacesCollection.add(newFace)
+                
+                createdFacesCollection.add(previousFace)
+                isWhole.append(False)
+
+                removeFeatures.add(faces.item(faceIndex).body)
+                arrayOffset += 1
+
+            faceIndex += 1
+        if currentInnerFacesCollection.count != 0:
+            innerFaces.append(currentInnerFacesCollection)
+
+# create solid body using lofts
+        faceIndex = 0
+        innerFaceIndex = 0
+        resultBody:adsk.fusion.BRepBody = None
+
+        for face in createdFacesCollection:
+            currentFace:adsk.fusion.BRepFace = createdFacesCollection.item(faceIndex)
+            currentProj:adsk.fusion.BRepFace = None
+            # currentProj:adsk.fusion.BRepFace = createdProjectionsCollection.item(faceIndex)
+            distance = _maxint
+            for splFace in createdProjectionsCollection:
+                tmpDist = getDistancesEdEd(splFace.edges, currentFace.edges)
+                if tmpDist < distance:
+                    distance = tmpDist
+                    currentProj = splFace
+            createdProjectionsCollection.removeByItem(currentProj)
+
+            if isWhole[faceIndex]:
+                # create body from projection
+                projCurvesCollection = adsk.core.ObjectCollection.create()
+                for curve in currentProj.edges:
+                    projCurvesCollection.add(curve)
+                patchInput = patchFeatures.createInput(projCurvesCollection, newBodyOperation)
+                patch = patchFeatures.add(patchInput)
+                currentProj = patch.faces.item(0)
+
+                # check if surface's direction is wrong and fix it
+                facePoint = currentProj.pointOnFace
+                radiusVector = adsk.core.Vector3D.create(facePoint.x, facePoint.y, facePoint.z)
+                (_, normalVector) = currentProj.evaluator.getNormalAtPoint(facePoint)
+                angle = normalVector.angleTo(radiusVector)
+                if angle > (math.pi / 2):
+                    currentProjBodyCol = adsk.core.ObjectCollection.create()
+                    currentProjBodyCol.add(currentProj.body)
+                    currentProj = reverseNormalFeatures.add(currentProjBodyCol).faces.item(0)
+                    
+                # offset projection into the cylinder to make them overlap
+                currentProjCollection = adsk.core.ObjectCollection.create()
+                currentProjCollection.add(currentProj)
+                offsetInput = offsetFeatures.createInput(currentProjCollection, offsetDistance, newBodyOperation)
+                offset = offsetFeatures.add(offsetInput)
+                removeFeatures.add(currentProj.body)
+                currentProj = offset.faces.item(0)
+
+                facesToStitchCollection = adsk.core.ObjectCollection.create()
+                facesToStitchCollection.add(currentProj.body)
+                facesToStitchCollection.add(currentFace.body)
+
+                # create walls(loft)
+                for edgeProj in currentProj.edges:
+                    loftInput = loftFeatures.createInput(newBodyOperation)
+                    loftSections = loftInput.loftSections
+
+                    edgeFace = findNearestEdge(edgeProj, currentFace.loops.item(0))
+                    pathCol1 = adsk.core.ObjectCollection.create()
+                    pathCol2 = adsk.core.ObjectCollection.create()
+                    pathCol1.add(edgeFace)
+                    pathCol2.add(edgeProj)
+
+                    path1 = adsk.fusion.Path.create(pathCol1, False)
+                    path2 = adsk.fusion.Path.create(pathCol2, False)
+
+                    loftSections.add(path1)
+                    loftSections.add(path2)
+                    loftInput.isSolid = False
+                    loftFeature = loftFeatures.add(loftInput)
+
+                    facesToStitchCollection.add(loftFeature.faces.item(0).body)
+
+                tolerance = adsk.core.ValueInput.createByReal(0.01)
+                stitchInput = stitchFeatures.createInput(facesToStitchCollection, tolerance, joinBodyOperation)
+                stitchFeature = stitchFeatures.add(stitchInput)
+                resultBody = stitchFeature.bodies.item(0)
+
+            else:
+                edgesCount = 0
+
+                # creating patch(for each loop and find the biggest one)
+                patchFaceCollection = adsk.core.ObjectCollection.create()
+                areaPatch = 0
+                for loop in currentProj.loops:
                     projCurvesCollection = adsk.core.ObjectCollection.create()
-                    for curve in currentProj.edges:
+                    for curve in loop.edges:
                         projCurvesCollection.add(curve)
                     patchInput = patchFeatures.createInput(projCurvesCollection, newBodyOperation)
                     patch = patchFeatures.add(patchInput)
-                    currentProj = patch.faces.item(0)
+                    patchFaceCollection.add(patch.faces.item(0))
+                    if patch.faces.item(0).area > areaPatch:
+                        patchFace = patch.faces.item(0)
+                        edgesCount = loop.edges.count
+                
+                # remove odd patches
+                patchFaceCollection.removeByItem(patchFace)
+                for tmpFace in patchFaceCollection:
+                    removeFeatures.add(tmpFace.body)
+                
+                # check if surface's direction is wrong and fix it
+                facePoint = patchFace.pointOnFace
+                radiusVector = adsk.core.Vector3D.create(facePoint.x, facePoint.y, facePoint.z)
+                (_, normalVector) = patchFace.evaluator.getNormalAtPoint(facePoint)
+                angle = normalVector.angleTo(radiusVector)
+                if angle > (math.pi / 2):
+                    patchFaceBodyCol = adsk.core.ObjectCollection.create()
+                    patchFaceBodyCol.add(patchFace.body)
+                    patchFace = reverseNormalFeatures.add(patchFaceBodyCol).faces.item(0)
 
-                    # check if surface's direction is wrong and fix it
-                    facePoint = currentProj.pointOnFace
-                    radiusVector = adsk.core.Vector3D.create(facePoint.x, facePoint.y, facePoint.z)
-                    (_, normalVector) = currentProj.evaluator.getNormalAtPoint(facePoint)
-                    angle = normalVector.angleTo(radiusVector)
-                    if angle > (math.pi / 2):
-                        currentProjBodyCol = adsk.core.ObjectCollection.create()
-                        currentProjBodyCol.add(currentProj.body)
-                        currentProj = reverseNormalFeatures.add(currentProjBodyCol).faces.item(0)
-                        
-                    # offset projection into the cylinder to make them overlap
-                    currentProjCollection = adsk.core.ObjectCollection.create()
-                    currentProjCollection.add(currentProj)
-                    offsetInput = offsetFeatures.createInput(currentProjCollection, offsetDistance, newBodyOperation)
-                    offset = offsetFeatures.add(offsetInput)
-                    removeFeatures.add(currentProj.body)
-                    currentProj = offset.faces.item(0)
+                # separating patch(using premade inner faces collection)
+                patchFaceCollection = adsk.core.ObjectCollection.create()
+                patchFaceCollection.add(patchFace)
+                splitInput = splitFaceFeatures.createInput(patchFaceCollection, innerFaces[innerFaceIndex], True)
+                splitInput.setClosestPointSplitType()
+                splitting = splitFaceFeatures.add(splitInput)
+                for splFace in innerFaces[innerFaceIndex]:
+                    removeFeatures.add(splFace.body)
+                innerFaceIndex += 1
 
-                    facesToStitchCollection = adsk.core.ObjectCollection.create()
-                    facesToStitchCollection.add(currentProj.body)
-                    facesToStitchCollection.add(currentFace.body)
+                unstitchCollection = adsk.core.ObjectCollection.create()
+                unstitchCollection.add(patchFace)
+                unstitch = unstitchFeatures.add(unstitchCollection)
 
-                    # create walls(loft)
-                    for edgeProj in currentProj.edges:
+                currentProj:adsk.fusion.BRepFace = None
+                facesToRemove = adsk.core.ObjectCollection.create()
+                flag = False
+                for splFace in unstitch.faces:
+                    if flag:
+                        facesToRemove.add(splFace)
+                        continue
+
+                    totalEdges = 0
+                    for tmpFace in unstitch.faces:
+                        if splFace != tmpFace:
+                            totalEdges += tmpFace.edges.count
+                    
+                    if splFace.edges.count - totalEdges == edgesCount:
+                        currentProj = splFace
+                        flag = True
+                    else:
+                        facesToRemove.add(splFace)
+
+                for splFace in facesToRemove:
+                    removeFeatures.add(splFace.body)
+                
+                # offset projection into the cylinder to make them overlap
+                currentProjCollection = adsk.core.ObjectCollection.create()
+                currentProjCollection.add(currentProj)
+                offsetInput = offsetFeatures.createInput(currentProjCollection, offsetDistance, newBodyOperation)
+                offset = offsetFeatures.add(offsetInput)
+                removeFeatures.add(currentProj.body)
+                currentProj = offset.faces.item(0)
+
+                # stitch currentProj currentFace and walls
+                facesToStitchCollection = adsk.core.ObjectCollection.create()
+                facesToStitchCollection.add(currentFace.body)
+                facesToStitchCollection.add(currentProj.body)
+                for loop in currentFace.loops:
+                    distance = _maxint
+                    pairLoop:adsk.fusion.BRepLoop = None
+                    for tmpLoop in currentProj.loops:
+                        tmpDist = getDistancesEdEd(tmpLoop.edges, loop.edges)
+                        if tmpDist < distance:
+                            distance = tmpDist
+                            pairLoop = tmpLoop
+
+                        # if tmpLoop.edges.count != loop.edges.count:
+                        #     continue
+                        # if tmpLoop.boundingBox.maxPoint.distanceTo(loop.boundingBox.maxPoint) < distance:
+                        #     pairLoop = tmpLoop
+                        #     distance = tmpLoop.boundingBox.maxPoint.distanceTo(loop.boundingBox.maxPoint)
+
+                    for edgeProj in pairLoop.edges:
                         loftInput = loftFeatures.createInput(newBodyOperation)
                         loftSections = loftInput.loftSections
 
-                        edgeFace = findNearestEdge(edgeProj, currentFace.loops.item(0))
+                        edgeFace = findNearestEdge(edgeProj, loop)
                         pathCol1 = adsk.core.ObjectCollection.create()
                         pathCol2 = adsk.core.ObjectCollection.create()
                         pathCol1.add(edgeFace)
@@ -886,241 +965,54 @@ class MyCommandExecuteHandler(adsk.core.CommandEventHandler):
                         loftFeature = loftFeatures.add(loftInput)
 
                         facesToStitchCollection.add(loftFeature.faces.item(0).body)
-
-                    tolerance = adsk.core.ValueInput.createByReal(0.01)
-                    stitchInput = stitchFeatures.createInput(facesToStitchCollection, tolerance, joinBodyOperation)
-                    stitchFeature = stitchFeatures.add(stitchInput)
-                    resultBody = stitchFeature.bodies.item(0)
-
-                else:
-                    edgesCount = 0
-
-                    # creating patch(for each loop and find the biggest one)
-                    patchFaceCollection = adsk.core.ObjectCollection.create()
-                    areaPatch = 0
-                    for loop in currentProj.loops:
-                        projCurvesCollection = adsk.core.ObjectCollection.create()
-                        for curve in loop.edges:
-                            projCurvesCollection.add(curve)
-                        patchInput = patchFeatures.createInput(projCurvesCollection, newBodyOperation)
-                        patch = patchFeatures.add(patchInput)
-                        patchFaceCollection.add(patch.faces.item(0))
-                        if patch.faces.item(0).area > areaPatch:
-                            patchFace = patch.faces.item(0)
-                            edgesCount = loop.edges.count
-                    
-                    # remove odd patches
-                    patchFaceCollection.removeByItem(patchFace)
-                    for tmpFace in patchFaceCollection:
-                        removeFeatures.add(tmpFace.body)
-                    
-                    # check if surface's direction is wrong and fix it
-                    facePoint = patchFace.pointOnFace
-                    radiusVector = adsk.core.Vector3D.create(facePoint.x, facePoint.y, facePoint.z)
-                    (_, normalVector) = patchFace.evaluator.getNormalAtPoint(facePoint)
-                    angle = normalVector.angleTo(radiusVector)
-                    if angle > (math.pi / 2):
-                        patchFaceBodyCol = adsk.core.ObjectCollection.create()
-                        patchFaceBodyCol.add(patchFace.body)
-                        patchFace = reverseNormalFeatures.add(patchFaceBodyCol).faces.item(0)
-
-                    # separating patch(using premade inner faces collection)
-                    patchFaceCollection = adsk.core.ObjectCollection.create()
-                    patchFaceCollection.add(patchFace)
-                    splitInput = splitFaceFeatures.createInput(patchFaceCollection, innerFaces[innerFaceIndex], True)
-                    splitInput.setClosestPointSplitType()
-                    splitting = splitFaceFeatures.add(splitInput)
-                    for splFace in innerFaces[innerFaceIndex]:
-                        removeFeatures.add(splFace.body)
-                    innerFaceIndex += 1
-
-                    unstitchCollection = adsk.core.ObjectCollection.create()
-                    unstitchCollection.add(patchFace)
-                    unstitch = unstitchFeatures.add(unstitchCollection)
-
-                    currentProj:adsk.fusion.BRepFace = None
-                    facesToRemove = adsk.core.ObjectCollection.create()
-                    flag = False
-                    for splFace in unstitch.faces:
-                        if flag:
-                            facesToRemove.add(splFace)
-                            continue
-
-                        totalEdges = 0
-                        for tmpFace in unstitch.faces:
-                            if splFace != tmpFace:
-                                totalEdges += tmpFace.edges.count
-                        
-                        if splFace.edges.count - totalEdges == edgesCount:
-                            currentProj = splFace
-                            flag = True
-                        else:
-                            facesToRemove.add(splFace)
-
-                    for splFace in facesToRemove:
-                        removeFeatures.add(splFace.body)
-                    
-                    # offset projection into the cylinder to make them overlap
-                    currentProjCollection = adsk.core.ObjectCollection.create()
-                    currentProjCollection.add(currentProj)
-                    offsetInput = offsetFeatures.createInput(currentProjCollection, offsetDistance, newBodyOperation)
-                    offset = offsetFeatures.add(offsetInput)
-                    removeFeatures.add(currentProj.body)
-                    currentProj = offset.faces.item(0)
-
-                    # stitch currentProj currentFace and walls
-                    facesToStitchCollection = adsk.core.ObjectCollection.create()
-                    facesToStitchCollection.add(currentFace.body)
-                    facesToStitchCollection.add(currentProj.body)
-                    for loop in currentFace.loops:
-                        distance = _maxint
-                        pairLoop:adsk.fusion.BRepLoop = None
-                        for tmpLoop in currentProj.loops:
-                            tmpDist = getDistancesEdEd(tmpLoop.edges, loop.edges)
-                            if tmpDist < distance:
-                                distance = tmpDist
-                                pairLoop = tmpLoop
-
-                            # if tmpLoop.edges.count != loop.edges.count:
-                            #     continue
-                            # if tmpLoop.boundingBox.maxPoint.distanceTo(loop.boundingBox.maxPoint) < distance:
-                            #     pairLoop = tmpLoop
-                            #     distance = tmpLoop.boundingBox.maxPoint.distanceTo(loop.boundingBox.maxPoint)
-
-                        for edgeProj in pairLoop.edges:
-                            loftInput = loftFeatures.createInput(newBodyOperation)
-                            loftSections = loftInput.loftSections
-
-                            edgeFace = findNearestEdge(edgeProj, loop)
-                            pathCol1 = adsk.core.ObjectCollection.create()
-                            pathCol2 = adsk.core.ObjectCollection.create()
-                            pathCol1.add(edgeFace)
-                            pathCol2.add(edgeProj)
-
-                            path1 = adsk.fusion.Path.create(pathCol1, False)
-                            path2 = adsk.fusion.Path.create(pathCol2, False)
-
-                            loftSections.add(path1)
-                            loftSections.add(path2)
-                            loftInput.isSolid = False
-                            loftFeature = loftFeatures.add(loftInput)
-
-                            facesToStitchCollection.add(loftFeature.faces.item(0).body)
-                    
-                    tolerance = adsk.core.ValueInput.createByReal(0.01)
-                    stitchInput = stitchFeatures.createInput(facesToStitchCollection, tolerance, joinBodyOperation)
-                    stitchFeature = stitchFeatures.add(stitchInput)
-                    resultBody = stitchFeature.bodies.item(0)
-
-                removeFeatures.add(currentFace.body)
-                faceIndex += 1
-            
-            # make slot
-            if makeSlot:
-                slotWidth /= 2
-
-                # create sketch rectangle
-                sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
-                lines = sketch.sketchCurves.sketchLines
-                firstPoint = adsk.core.Point3D.create(slotWidth, radius - thickness - radiusOffset, 0)
-                secondPoint = adsk.core.Point3D.create(-slotWidth, radius + thickness + radiusOffset, 0)
-                lineList:adsk.fusion.SketchLineList = lines.addTwoPointRectangle(firstPoint, secondPoint)
                 
-                # # create profile from rectangle
-                # linesCol = adsk.core.ObjectCollection.create()
-                # for line in lineList:
-                #     linesCol.add(line)
-                # prof = rootComp.createOpenProfile(linesCol)
+                tolerance = adsk.core.ValueInput.createByReal(0.01)
+                stitchInput = stitchFeatures.createInput(facesToStitchCollection, tolerance, joinBodyOperation)
+                stitchFeature = stitchFeatures.add(stitchInput)
+                resultBody = stitchFeature.bodies.item(0)
 
-                # cut with extrude
-                extrudeInput = extrudeFeatures.createInput(sketch.profiles.item(0), cutBodyOperation)
-                extrudeInput.setSymmetricExtent(adsk.core.ValueInput.createByReal(height), True)
-                extrudeInput.participantBodies = [resultBody]
-                extrudeInput.isSolid = True
-                extrudeFeatures.add(extrudeInput)
+            removeFeatures.add(currentFace.body)
+            faceIndex += 1
+        
+        # make slot
+        if makeSlot:
+            slotWidth /= 2
 
+            # create sketch rectangle
+            sketch = rootComp.sketches.add(rootComp.xYConstructionPlane)
+            lines = sketch.sketchCurves.sketchLines
+            firstPoint = adsk.core.Point3D.create(slotWidth, radius - thickness - radiusOffset, 0)
+            secondPoint = adsk.core.Point3D.create(-slotWidth, radius + thickness + radiusOffset, 0)
+            lineList:adsk.fusion.SketchLineList = lines.addTwoPointRectangle(firstPoint, secondPoint)
             
-        except:
-            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+            # # create profile from rectangle
+            # linesCol = adsk.core.ObjectCollection.create()
+            # for line in lineList:
+            #     linesCol.add(line)
+            # prof = rootComp.createOpenProfile(linesCol)
 
-class myCommandCreatedHandler(adsk.core.CommandCreatedEventHandler):
-    def __init__(self):
-        super().__init__()
-    def notify(self, args):
-        try:
-            # Get the command that was created.
-            cmd = adsk.core.Command.cast(args.command)
+            # cut with extrude
+            extrudeInput = extrudeFeatures.createInput(sketch.profiles.item(0), cutBodyOperation)
+            extrudeInput.setSymmetricExtent(adsk.core.ValueInput.createByReal(height), True)
+            extrudeInput.participantBodies = [resultBody]
+            extrudeInput.isSolid = True
+            extrudeFeatures.add(extrudeInput)
 
-            # Connect to the command destroyed event.
-            onDestroy = MyCommandDestroyHandler()
-            cmd.destroy.add(onDestroy)
-            _handlers.append(onDestroy)
-
-            # Connect to the input changed event.           
-            onInputChanged = MyCommandInputChangedHandler()
-            cmd.inputChanged.add(onInputChanged)
-            _handlers.append(onInputChanged)    
-
-            onExecute = MyCommandExecuteHandler()
-            cmd.execute.add(onExecute)
-            _handlers.append(onExecute)
-
-            # Get the CommandInputs collection associated with the command.
-            inputs = cmd.commandInputs
-
-            # Create a tab input.
-            tabCmdInput1:adsk.core.TabCommandInput = inputs.addTabCommandInput('tab_1', 'Tab 1')
-            tab1ChildInputs = tabCmdInput1.children
-
-            # Create value inputs.
-            tab1ChildInputs.addValueInput('Radius', 'Radius (cm)', '', adsk.core.ValueInput.createByReal(1.0))
-
-            tab1ChildInputs.addValueInput('Height', 'Height (cm)', '', adsk.core.ValueInput.createByReal(0.4))
-
-            tab1ChildInputs.addValueInput('Thickness', 'Thickness (cm)', '', adsk.core.ValueInput.createByReal(0.02))
-
-            tab1ChildInputs.addStringValueInput('Text', 'Text', 'Text')
-
-            tab1ChildInputs.addValueInput('Font size', 'Font size (cm)', '', adsk.core.ValueInput.createByReal(0.5))
-
-            tab1ChildInputs.addValueInput('Radius offset', 'Radius offset (cm)', '', adsk.core.ValueInput.createByReal(0.02))
-            
-            tab1ChildInputs.addValueInput('Character spacing', 'Character spacing (cm)', '', adsk.core.ValueInput.createByReal(0))
-
-            tab1ChildInputs.addBoolValueInput('Single line', 'Single line?', True, '', True)
-
-            tab1ChildInputs.addBoolValueInput('Slot', 'Make slot?', True, '', True)
-
-            tab1ChildInputs.addValueInput('Slot width', 'Slot width (cm)', '', adsk.core.ValueInput.createByReal(0.02))
-            
-            tab1ChildInputs.addBoolValueInput('Use picture', 'Use picture?', True, '', False)
-
-            tab1ChildInputs.addValueInput('Image scaling', 'Image scaling', '', adsk.core.ValueInput.createByReal(0.95))
-
-        except:
-            _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
-
+        
+    except:
+        _ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
 
 def run(context):
     try:
+        # download()
+
         global _app, _ui, _design
         _app = adsk.core.Application.get()
         _ui  = _app.userInterface
 
         _design = _app.activeProduct
 
-        cmdDef = _ui.commandDefinitions.itemById('a')
-        if not cmdDef:
-            cmdDef = _ui.commandDefinitions.addButtonDefinition('a', 'my scale parameters', ' ')
-
-        onCommandCreated = myCommandCreatedHandler()
-        cmdDef.commandCreated.add(onCommandCreated)
-        _handlers.append(onCommandCreated)
-
-        inputs = adsk.core.NamedValues.create()
-        cmdDef.execute(inputs)
-
-        adsk.autoTerminate(False)
+        task()
 
     except:
         if _ui:
