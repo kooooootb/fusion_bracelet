@@ -1,0 +1,11 @@
+1 4.0 Radius Radius (cm)
+1 1.0 Height Height (cm)
+1 0.1 Thickness Thickness (cm)
+0 Text Text Text
+1 0.8 Font_size Font size (cm)
+1 0.05 Radius_offset Radius offset (cm)
+1 0.5 Character_spacing Character spacing (%)
+2 0 Slot Make slot?
+1 0.2 Slot_width Slot width (cm)
+# 2 0 Use_picture Use picture?
+# 1 0.95 Image_scaling Image scaling
